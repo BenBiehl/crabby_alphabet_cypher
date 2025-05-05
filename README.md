@@ -16,7 +16,7 @@ On Fedora Rawhide you need to run:
 
 `dnf install clang clang-devel clang-tools-extra libxkbcommon-devel pkg-config openssl-devel libxcb-devel gtk3-devel atk fontconfig-devel`
 
-Running the command will automatically open the application, or you can located the .exe in target/release/ to run the application after build.
+Running the command will automatically open the application, or you can locate the .exe in target/release/ to run the application after build.
 
 ### How to use
 
