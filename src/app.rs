@@ -1,4 +1,4 @@
-/// We derive Deserialize/Serialize so we can persist app state on shutdown.
+use egui::RichText;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -10,6 +10,7 @@ pub struct TemplateApp {
     input_text: String,
     output_text: String,
     cypher_key: [char; 26],
+    cypher_key_string: String,
 }
 
 impl Default for TemplateApp {
@@ -20,6 +21,7 @@ impl Default for TemplateApp {
             input_text: String::new(),
             output_text: String::new(),
             cypher_key: ('A'..='Z').collect::<Vec<_>>().try_into().unwrap(), // Default is just a vector with default alphabet order
+            cypher_key_string: String::new(),
         }
     }
 }
@@ -91,6 +93,15 @@ impl TemplateApp {
         letters.shuffle(&mut rng); // Randomizes all the chars in the letters Vec
         self.cypher_key = letters.try_into().unwrap();
     }
+
+    // Ensures that key is valid
+    fn is_valid_key(&self) -> bool {
+        let key = self.cypher_key_string.to_uppercase();
+        key.len() == 26 && key.chars().all(|c| c.is_ascii_uppercase()) && {
+            let mut seen = std::collections::HashSet::new();
+            key.chars().all(|c| seen.insert(c))
+        }
+    }
 }
 
 impl eframe::App for TemplateApp {
@@ -132,43 +143,64 @@ impl eframe::App for TemplateApp {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            if self.tab == 0 {
-                ui.heading("About");
+            ui.with_layout(
+                egui::Layout::top_down(egui::Align::Center),
+                |ui| match self.tab {
+                    0 => {
+                        ui.label(RichText::new("About").heading().size(24.0).strong());
+                        ui.add_space(10.0);
+                        ui.label("Mono-alphabetic substitution cipher implementation in Rust using egui. Can generate random keys to use, and allows for encryption and decryption.");
+                    }
+                    1 => {
+                        ui.label(RichText::new("Encrypt").heading().size(24.0).strong());
+                        ui.add_space(10.0);
 
-                ui.label("Mono-alphabetic substitution cipher in Rust using egui.");
-            } else if self.tab == 1 {
-                ui.heading("Encrypt");
+                        ui.label("Current substitution key (A-Z):");
+                        ui.text_edit_singleline(&mut self.cypher_key_string);
+                        ui.add_space(5.0);
+                        if !self.is_valid_key() {
+                            ui.colored_label(egui::Color32::RED, "Invalid: Key must be 26 unique A-Z letters");
+                        }
 
-                ui.label("Current substitution key (A-Z):");
-                let key_display: String = self.cypher_key.iter().collect();
-                ui.monospace(key_display);
-                if ui.button("Randomize Key").clicked() {
-                    self.randomize_key();
-                }
+                        if ui.button("Randomize Key").clicked() {
+                            self.randomize_key();
+                            self.cypher_key_string = self.cypher_key.iter().collect();
+                        }
 
-                ui.label("Enter text to encrypt:");
-                ui.text_edit_multiline(&mut self.input_text);
-                if ui.button("Encrypt").clicked() {
-                    self.output_text = self.encrypt(&self.input_text);
-                }
+                        ui.add_space(10.0);
+                        ui.label("Enter text to encrypt:");
+                        ui.text_edit_multiline(&mut self.input_text);
 
-                ui.label("Encrypted text:");
-                ui.text_edit_multiline(&mut self.output_text);
-                if ui.button("📋").clicked() {
-                    ctx.output_mut(|o| o.copied_text = self.output_text.clone());
-                }
-            } else if self.tab == 2 {
-                ui.heading("Decrypt");
-                ui.label("Enter text to decrypt:");
-                ui.text_edit_multiline(&mut self.input_text);
+                        if ui.button("Encrypt").clicked() {
+                            self.output_text = self.encrypt(&self.input_text);
+                        }
 
-                if ui.button("Decrypt").clicked() {
-                    self.output_text = self.decrypt(&self.input_text);
-                }
+                        ui.add_space(10.0);
+                        ui.label("Encrypted text:");
+                        ui.text_edit_multiline(&mut self.output_text);
 
-                ui.label("Decrypted text:");
-                ui.text_edit_multiline(&mut self.output_text);
-            }
+                        if ui.button("📋").clicked() {
+                            ctx.output_mut(|o| o.copied_text = self.output_text.clone());
+                        }
+                    }
+                    2 => {
+                        ui.label(RichText::new("Decrypt").heading().size(24.0).strong());
+                        ui.add_space(10.0);
+
+                        ui.label("Enter text to decrypt:");
+                        ui.text_edit_multiline(&mut self.input_text);
+
+                        if ui.button("Decrypt").clicked() {
+                            self.output_text = self.decrypt(&self.input_text);
+                        }
+
+                        ui.add_space(10.0);
+                        ui.label("Decrypted text:");
+                        ui.text_edit_multiline(&mut self.output_text);
+                    }
+                    _ => {}
+                },
+            );
         });
     }
 }
